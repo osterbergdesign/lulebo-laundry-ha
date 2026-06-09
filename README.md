@@ -12,7 +12,7 @@ En custom integration för att övervaka, boka och avboka tvättpass hos Lulebo 
 ## Installation via HACS (Rekommenderas)
 1. Öppna HACS i Home Assistant.
 2. Klicka på de tre prickarna uppe till höger och välj **Custom repositories**.
-3. Klistra in länken till detta repo: `https://github.com/DITT_GITHUB_NAMN/lulebo-laundry-ha`
+3. Klistra in länken till detta repo: `https://github.com/osterbergdesign/lulebo-laundry-ha`
 4. Välj kategori: **Integration**.
 5. Klicka på "Lägg till" och ladda ner.
 6. Starta om Home Assistant.
@@ -41,7 +41,7 @@ För att integrationen ska hitta rätt tvättstuga behöver du dina unika ID:n f
 EXAMPLE AUTOMATIONS AND CARDS
 
 ***Booked times card***
-
+```yaml
 type: todo-list
 entity: todo.tvattstuga
 title: Mina Bokade Pass 🧺
@@ -62,10 +62,11 @@ card_mod:
     ha-checkbox {
       --mdc-checkbox-unchecked-color: var(--secondary-text-color);
     }
-
+```
 
 ***AVAILABLE TIMES LIST O BOKNINGS LISTA CARD***
 **KRÄVER autoentities card**
+```yaml
 type: custom:auto-entities
 card:
   type: entities
@@ -171,10 +172,11 @@ filter:
 grid_options:
   columns: 14
   rows: auto
-
+```
 
 ***AUTOMATIONS***
 
+```yaml
 alias: "Lulebo Tvättstuga Heartbeat"
 description: "Håller sessionen mot Lulebo vid liv och uppdaterar vid omstart."
 mode: single
@@ -187,13 +189,13 @@ action:
   - service: homeassistant.update_entity
     target:
       entity_id: sensor.lulebo_laundry_availability
+```
 
 
 
 
 
-
-
+```yaml
 alias: Execute Laundry Booking
 sequence:
   - service: lulebo_laundry.book
@@ -218,11 +220,11 @@ sequence:
       title: "Tvättstuga Bokad 🧺"
       message: "Tiden den {{ booking_date }} bokades framgångsrikt!"
 mode: single
+```
 
 
 
-
-
+```yaml
 alias: Execute Laundry Cancellation
 sequence:
   - service: lulebo_laundry.cancel
@@ -245,7 +247,7 @@ sequence:
       title: "Tvättstuga Avbokad ❌"
       message: "Tiden den {{ target_date }} har nu avbokats."
 mode: single
-
+```
 
 
 
