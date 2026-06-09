@@ -1,0 +1,11 @@
+{
+  "domain": "lulebo_laundry",
+  "name": "Lulebo Tvättstuga",
+  "config_flow": true,
+  "documentation": "https://github.com/osterbergdesign/lulebo_laundry",
+  "dependencies": ["todo"],
+  "codeowners": ["@osterbergdesign"],
+  "requirements": ["beautifulsoup4>=4.11.1", "requests>=2.28.1"],
+  "iot_class": "cloud_polling",
+  "version": "1.0.0"
+}

@@ -1,0 +1,1 @@
+DOMAIN = "lulebo_laundry"
