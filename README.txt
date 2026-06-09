@@ -1,5 +1,7 @@
 # Lulebo Tvättstuga för Home Assistant 🧺
 
+A homassistant integration making it possible to book, cancel and check laundry time availability for lulebos rentees. This can for sure be modified for all AptusPortal based booking systems! Feel free to improve or modify
+
 En custom integration för att övervaka, boka och avboka tvättpass hos Lulebo (Aptus) direkt i Home Assistant. 
 
 ## Funktioner
