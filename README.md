@@ -38,7 +38,7 @@ För att integrationen ska hitta rätt tvättstuga behöver du dina unika ID:n f
 
 
 
-EXAMPLE AUTOMATIONS AND CARDS
+## EXAMPLE AUTOMATIONS AND CARDS
 
 ***Booked times card***
 ```yaml
