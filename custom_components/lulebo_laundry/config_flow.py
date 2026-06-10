@@ -16,8 +16,8 @@ class LuleboConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema({
             vol.Required("username"): str,
             vol.Required("password"): str,
-            vol.Required("booking_group_id", default="96"): str,
-            vol.Required("contract_id", default="334931"): str,
+            vol.Required("booking_group_id", default="booking_group_id"): str,
+            vol.Required("contract_id", default="contract_id"): str,
         })
 
         return self.async_show_form(
