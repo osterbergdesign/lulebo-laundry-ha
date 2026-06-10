@@ -177,25 +177,6 @@ grid_options:
 ***AUTOMATIONS***
 
 ```yaml
-alias: "Lulebo Tvättstuga Heartbeat"
-description: "Håller sessionen mot Lulebo vid liv och uppdaterar vid omstart."
-mode: single
-trigger:
-  - platform: homeassistant
-    event: start
-  - platform: time_pattern
-    hours: "/4"
-action:
-  - service: homeassistant.update_entity
-    target:
-      entity_id: sensor.lulebo_laundry_availability
-```
-
-
-
-
-
-```yaml
 alias: Execute Laundry Booking
 sequence:
   - service: lulebo_laundry.book
