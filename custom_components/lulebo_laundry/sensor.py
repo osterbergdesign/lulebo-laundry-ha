@@ -9,7 +9,6 @@ SCAN_INTERVAL = timedelta(hours=1)
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Sätt upp sensorn via Config Flow (Popupen)."""
-    # Hämtar API-objektet baserat på det unika entry_id som skapades i __init__.py
     api = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([LuleboAvailabilitySensor(api)], True)
 
