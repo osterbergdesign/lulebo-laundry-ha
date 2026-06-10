@@ -1,0 +1,24 @@
+book:
+  name: "Boka Tvättid"
+  description: "Bokar ett tvättpass hos Lulebo."
+  fields:
+    date:
+      name: "Datum"
+      description: "Datum för bokning (Format: YYYY-MM-DD)"
+      required: true
+      example: "2026-06-15"
+    slot:
+      name: "Passnummer"
+      description: "Vilket pass som ska bokas (0, 1, 2 eller 3)"
+      required: true
+      example: "1"
+
+cancel:
+  name: "Avboka Tvättid"
+  description: "Avbokar ett befintligt tvättpass."
+  fields:
+    date:
+      name: "Datum"
+      description: "Datum att avboka (Format: YYYY-MM-DD)"
+      required: true
+      example: "2026-06-15"
