@@ -34,8 +34,17 @@ class LuleboAvailabilitySensor(SensorEntity):
     def update(self):
         """Fetch new state data for the sensor."""
         _LOGGER.info("Lulebo Sensor: Fetching latest week availability...")
+        
+        # Hämta lediga tider
         data = self.api.get_week_availability()
         
+        # Hämta aktiva bokningar direkt
+        my_bookings = self.api.get_active_bookings()
+        
+        # Säkerställ att my_bookings alltid är en ordlista, aldrig None eller strängen "None"
+        if not my_bookings or my_bookings == "None":
+            my_bookings = {}
+
         if data is not None:
             total_slots = sum(len(slots) for slots in data.values())
             self._state = total_slots
@@ -51,11 +60,7 @@ class LuleboAvailabilitySensor(SensorEntity):
             for date, slots in data.items():
                 readable_data[date] = [slot_map.get(s, s) for s in slots]
 
-            my_bookings = self.api.get_active_bookings()
-
-            if my_bookings is None:
-                my_bookings = self._attributes.get("current_bookings", {})
-
+            # Här sparar vi ner datan i sensorns attribut ordentligt
             self._attributes = {
                 "available_dates": readable_data,
                 "raw_slots": data,
@@ -63,3 +68,6 @@ class LuleboAvailabilitySensor(SensorEntity):
             }
         else:
             _LOGGER.warning("Kunde inte nå Lulebo. Behåller tidigare känd data för att undvika glitchar på dashboarden.")
+            # Även om kalendern svajar, se till att vi inte kraschar bokningsattributet
+            if "current_bookings" not in self._attributes:
+                self._attributes["current_bookings"] = my_bookings
