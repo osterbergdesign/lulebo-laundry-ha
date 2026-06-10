@@ -1,4 +1,5 @@
 import logging
+import traceback
 from datetime import timedelta
 from homeassistant.components.sensor import SensorEntity
 from .const import DOMAIN
@@ -16,7 +17,12 @@ class LuleboAvailabilitySensor(SensorEntity):
     def __init__(self, api):
         self.api = api
         self._state = None
-        self._attributes = {}
+        # Vi förbereder tomma fält direkt från start så de aldrig är spårlöst borta
+        self._attributes = {
+            "available_dates": {},
+            "raw_slots": {},
+            "current_bookings": {}
+        }
         self._name = "Lulebo Laundry Availability"
 
     @property
@@ -32,42 +38,44 @@ class LuleboAvailabilitySensor(SensorEntity):
         return self._attributes
 
     def update(self):
-        """Fetch new state data for the sensor."""
-        _LOGGER.info("Lulebo Sensor: Fetching latest week availability...")
+        """Hämta ny data från Lulebo API."""
+        _LOGGER.warning("Lulebo Sensor: Startar uppdatering...")
         
-        # Hämta lediga tider
-        data = self.api.get_week_availability()
-        
-        # Hämta aktiva bokningar direkt
-        my_bookings = self.api.get_active_bookings()
-        
-        # Säkerställ att my_bookings alltid är en ordlista, aldrig None eller strängen "None"
-        if not my_bookings or my_bookings == "None":
-            my_bookings = {}
+        try:
+            # 1. Hämta aktiva bokningar FÖRST och spara direkt
+            my_bookings = self.api.get_active_bookings()
+            
+            if not my_bookings or my_bookings == "None":
+                my_bookings = {}
+                
+            self._attributes["current_bookings"] = my_bookings
+            _LOGGER.warning(f"Lulebo Sensor: Sparade aktiva bokningar i attribut: {my_bookings}")
 
-        if data is not None:
-            total_slots = sum(len(slots) for slots in data.values())
-            self._state = total_slots
+            # 2. Hämta lediga tider efteråt
+            data = self.api.get_week_availability()
+            
+            if data is not None:
+                total_slots = sum(len(slots) for slots in data.values())
+                self._state = total_slots
 
-            readable_data = {}
-            slot_map = {
-                "0": "07:00 - 10:30",
-                "1": "10:30 - 14:00",
-                "2": "14:00 - 17:30",
-                "3": "17:30 - 21:00"
-            }
+                readable_data = {}
+                slot_map = {
+                    "0": "07:00 - 10:30",
+                    "1": "10:30 - 14:00",
+                    "2": "14:00 - 17:30",
+                    "3": "17:30 - 21:00"
+                }
 
-            for date, slots in data.items():
-                readable_data[date] = [slot_map.get(s, s) for s in slots]
+                for date, slots in data.items():
+                    readable_data[date] = [slot_map.get(s, s) for s in slots]
 
-            # Här sparar vi ner datan i sensorns attribut ordentligt
-            self._attributes = {
-                "available_dates": readable_data,
-                "raw_slots": data,
-                "current_bookings": my_bookings
-            }
-        else:
-            _LOGGER.warning("Kunde inte nå Lulebo. Behåller tidigare känd data för att undvika glitchar på dashboarden.")
-            # Även om kalendern svajar, se till att vi inte kraschar bokningsattributet
-            if "current_bookings" not in self._attributes:
-                self._attributes["current_bookings"] = my_bookings
+                self._attributes["available_dates"] = readable_data
+                self._attributes["raw_slots"] = data
+                _LOGGER.warning("Lulebo Sensor: Hela uppdateringen kördes utan problem!")
+            else:
+                _LOGGER.warning("Lulebo Sensor: Kunde inte nå kalendern för lediga tider.")
+
+        except Exception as e:
+            # Om koden kraschar kommer den skriva ut EXAKT varför och på vilken rad i din HA-logg!
+            _LOGGER.error(f"Lulebo Sensor: DET BLEV EN CRASH! Felmeddelande: {e}")
+            _LOGGER.error(traceback.format_exc())
