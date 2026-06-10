@@ -1,27 +1,28 @@
 import logging
-import voluptuous as vol
-import homeassistant.helpers.config_validation as cv
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers.discovery import load_platform
+from .const import DOMAIN
 from .api import LuleboLaundryAPI
 
-DOMAIN = "lulebo_laundry"
 _LOGGER = logging.getLogger(__name__)
+PLATFORMS = ["sensor"]
 
-# Replace these with your actual Lulebo credentials
-USERNAME = "YOUR USERNAME"
-PASSWORD = "YOUR PASSWORD"
-
-def setup(hass: HomeAssistant, config: dict):
-    """Set up the Lulebo Laundry component."""
-    
-    # Initialize our custom API
-    api = LuleboLaundryAPI(USERNAME, PASSWORD)
-    
-    # Store the API so sensor.py can grab it
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Sätt upp Lulebo Tvättstuga från en Config Entry (Popupen)."""
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN]["api"] = api
     
+    # Hämtar exakt det användaren skrev i popupen
+    api = LuleboLaundryAPI(
+        username=entry.data["username"],
+        password=entry.data["password"],
+        booking_group_id=entry.data["booking_group_id"],
+        contract_id=entry.data["contract_id"]
+    )
+    
+    # Sparar API-instansen
+    hass.data[DOMAIN][entry.entry_id] = api
+
+    # --- REGISTRERA TJÄNSTERNA FÖR ATT BOKA OCH AVBOKA ---
     def handle_book(call: ServiceCall):
         target_date = call.data.get("date")
         time_slot = call.data.get("slot")
@@ -39,11 +40,15 @@ def setup(hass: HomeAssistant, config: dict):
         else:
             _LOGGER.error(f"Failed to cancel booking on {target_date}")
 
-    # Register the services
-    hass.services.register(DOMAIN, "book", handle_book)
-    hass.services.register(DOMAIN, "cancel", handle_cancel)
-
-    # Tell Home Assistant to load our new sensor.py file
-    load_platform(hass, "sensor", DOMAIN, {}, config)
-
+    hass.services.async_register(DOMAIN, "book", handle_book)
+    hass.services.async_register(DOMAIN, "cancel", handle_cancel)
+    
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Ta bort sparad data om användaren raderar integrationen."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unload_ok
