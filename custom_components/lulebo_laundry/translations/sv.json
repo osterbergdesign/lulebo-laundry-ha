@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Logga in på Lulebo",
+        "description": "Ange dina inloggningsuppgifter och dina ID:n för att koppla din tvättstuga.",
+        "data": {
+          "username": "Personnummer (ÅÅÅÅMMDDXXXX)",
+          "password": "Lösenord",
+          "booking_group_id": "Booking Group ID",
+          "contract_id": "Contract ID"
+        }
+      }
+    }
+  }
+}
