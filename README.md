@@ -176,6 +176,25 @@ grid_options:
 
 ***AUTOMATIONS***
 
+
+```yaml
+alias: "Notis: Tvättstuga 10 min innan"
+trigger:
+  - platform: template
+    value_template: >
+      {% for item in state_attr('todo.tvattstuga', 'items') %}
+        {% set start_time = as_datetime(item.summary.split(': ')[1] + ' 00:00:00') %}
+        # Här behöver vi matcha mot ett specifikt klockslag. 
+        # Om ditt kort visar tider (t.ex. 07:00), kan vi trigga på det.
+        {{ (start_time - now()).total_seconds() | int > 0 and (start_time - now()).total_seconds() | int < 600 }}
+      {% endfor %}
+action:
+  - service: notify.mobile_app_ditt_mobilnamn  # Ändra till din telefon!
+    data:
+      title: "Tvättstuga 🧺"
+      message: "Ditt tvättpass börjar om 10 minuter!"
+```
+
 ```yaml
 alias: Execute Laundry Booking
 sequence:
