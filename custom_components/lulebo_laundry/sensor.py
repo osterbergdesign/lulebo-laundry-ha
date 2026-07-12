@@ -1,29 +1,36 @@
 import logging
 import traceback
 from datetime import timedelta
+
 from homeassistant.components.sensor import SensorEntity
-from .const import DOMAIN
+
+from .const import DOMAIN, SLOT_LABELS
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_INTERVAL = timedelta(hours=1) 
+SCAN_INTERVAL = timedelta(hours=1)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Sätt upp sensorn via Config Flow (Popupen)."""
+    """Set up the availability sensor from a config entry."""
     api = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([LuleboAvailabilitySensor(api)], True)
+    async_add_entities([LuleboAvailabilitySensor(api, entry)], True)
+
 
 class LuleboAvailabilitySensor(SensorEntity):
-    def __init__(self, api):
+    _attr_icon = "mdi:washing-machine"
+
+    def __init__(self, api, entry):
         self.api = api
         self._state = None
-        # Vi förbereder tomma fält direkt från start så de aldrig är spårlöst borta
         self._attributes = {
             "available_dates": {},
             "raw_slots": {},
-            "current_bookings": {}
+            "current_bookings": {},
         }
         self._name = "Lulebo Laundry Availability"
+        # Stable unique_id so the entity can be customised in the UI.
+        self._attr_unique_id = f"{entry.entry_id}_availability"
 
     @property
     def name(self):
@@ -38,44 +45,37 @@ class LuleboAvailabilitySensor(SensorEntity):
         return self._attributes
 
     def update(self):
-        """Hämta ny data från Lulebo API."""
-        _LOGGER.warning("Lulebo Sensor: Startar uppdatering...")
-        
+        """Fetch new data from the Lulebo API (runs in the executor)."""
+        _LOGGER.debug("Lulebo sensor: starting update")
+
         try:
-            # 1. Hämta aktiva bokningar FÖRST och spara direkt
+            # 1. Active bookings. None => fetch failed, keep previous value.
             my_bookings = self.api.get_active_bookings()
-            
-            if not my_bookings or my_bookings == "None":
-                my_bookings = {}
-                
-            self._attributes["current_bookings"] = my_bookings
-            _LOGGER.warning(f"Lulebo Sensor: Sparade aktiva bokningar i attribut: {my_bookings}")
-
-            # 2. Hämta lediga tider efteråt
-            data = self.api.get_week_availability()
-            
-            if data is not None:
-                total_slots = sum(len(slots) for slots in data.values())
-                self._state = total_slots
-
-                readable_data = {}
-                slot_map = {
-                    "0": "07:00 - 10:30",
-                    "1": "10:30 - 14:00",
-                    "2": "14:00 - 17:30",
-                    "3": "17:30 - 21:00"
-                }
-
-                for date, slots in data.items():
-                    readable_data[date] = [slot_map.get(s, s) for s in slots]
-
-                self._attributes["available_dates"] = readable_data
-                self._attributes["raw_slots"] = data
-                _LOGGER.warning("Lulebo Sensor: Hela uppdateringen kördes utan problem!")
+            if my_bookings is None:
+                _LOGGER.warning(
+                    "Lulebo sensor: could not fetch bookings, keeping last known data"
+                )
             else:
-                _LOGGER.warning("Lulebo Sensor: Kunde inte nå kalendern för lediga tider.")
+                self._attributes["current_bookings"] = my_bookings
 
-        except Exception as e:
-            # Om koden kraschar kommer den skriva ut EXAKT varför och på vilken rad i din HA-logg!
-            _LOGGER.error(f"Lulebo Sensor: DET BLEV EN CRASH! Felmeddelande: {e}")
-            _LOGGER.error(traceback.format_exc())
+            # 2. Available slots. None => fetch failed, keep previous value.
+            data = self.api.get_week_availability()
+            if data is None:
+                _LOGGER.warning(
+                    "Lulebo sensor: could not fetch availability, keeping last known data"
+                )
+                return
+
+            self._state = sum(len(slots) for slots in data.values())
+
+            readable = {
+                date: [SLOT_LABELS.get(s, s) for s in slots]
+                for date, slots in data.items()
+            }
+            self._attributes["available_dates"] = readable
+            self._attributes["raw_slots"] = data
+            _LOGGER.debug("Lulebo sensor: update complete")
+
+        except Exception as err:  # pragma: no cover - defensive
+            _LOGGER.error("Lulebo sensor: crashed during update: %s", err)
+            _LOGGER.debug(traceback.format_exc())
