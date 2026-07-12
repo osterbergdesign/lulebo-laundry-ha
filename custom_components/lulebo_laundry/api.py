@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 
-from .const import REQUEST_TIMEOUT
+from .const import REQUEST_TIMEOUT, SLOT_TIMES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -228,85 +228,66 @@ class LuleboLaundryAPI:
             return collected
         return {date: info["url"] for date, info in collected.items()}
 
+    # Matches the aria-label Aptus renders on each cancel button, e.g.
+    # aria-label="Avboka Tvätt 2026-07-15 10:30"
+    _AVBOKA_LABEL_RE = re.compile(
+        r"Avboka\s+Tv[aä]tt\s+(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})"
+    )
+
     def _collect_bookings(self):
-        """Scrape bookings as {date: {"url": ..., "slot": ...}} or None on failure."""
+        """Scrape bookings as {date: {"url": ..., "slot": ...}} or None on failure.
+
+        Real markup for a booked slot (confirmed against a live account):
+
+            <button aria-label="Avboka Tvätt 2026-07-15 10:30"
+                    class="unbookButton unfocus" id="238425913"
+                    title="Avboka" type="button">Avboka</button>
+            <script>
+              ConfirmCancelBooking('238425913',
+                '/AptusPortal/CustomerBooking/Unbook/238425913', ...);
+            </script>
+
+        The button's own id is the numeric booking id used in the unbook URL,
+        and its aria-label carries the exact date and start time - no need to
+        parse the Swedish confirmation text or hunt for passDate/passNo query
+        params, which this markup doesn't use at all.
+        """
         bookings = {}
         loaded_any = False
 
-        # --- Strategy 1: overview page Unbook anchor links -------------------
-        overview_url = f"{self.base_url}/CustomerBooking"
-        overview = self._get(overview_url)
-        overview_soup = None
-        if overview is not None and not self._looks_like_login(overview):
-            loaded_any = True
-            overview_soup = BeautifulSoup(overview.text, "html.parser")
-            for link in overview_soup.find_all(
-                "a", href=re.compile(r"/CustomerBooking/Unbook/\d+")
-            ):
-                href = link.get("href", "")
-                # Search nearby text for a YYYY-MM-DD date.
-                container = link.find_parent("tr") or link.parent
-                row_text = container.get_text(" ", strip=True) if container else ""
-                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", row_text)
-                if date_match:
-                    date_key = date_match.group(1)
-                    slot = self._slot_from_path(href)
-                    bookings[date_key] = {
-                        "url": f"https://lulebo.aptustotal.se{href}",
-                        "slot": slot,
-                    }
+        pages = [
+            f"{self.base_url}/CustomerBooking",
+            f"{self.base_url}/CustomerBooking/BookingCalendar?bookingGroupId={self.group_id}",
+        ]
 
-        # --- Strategy 2: inline ConfirmCancelBooking() calls -----------------
-        calendar_url = (
-            f"{self.base_url}/CustomerBooking/BookingCalendar?bookingGroupId={self.group_id}"
-        )
-        calendar = self._get(calendar_url)
-        cal_soup = None
-        if calendar is not None and not self._looks_like_login(calendar):
-            loaded_any = True
-            cal_soup = BeautifulSoup(calendar.text, "html.parser")
-
-        scripts = []
-        if overview_soup:
-            scripts += overview_soup.find_all("script")
-        if cal_soup:
-            scripts += cal_soup.find_all("script")
-
-        for script in scripts:
-            if not script.string:
+        for url in pages:
+            resp = self._get(url)
+            if resp is None or self._looks_like_login(resp):
                 continue
-            # findall (not search) so we catch ALL bookings in a script block.
-            for path in re.findall(
-                r"ConfirmCancelBooking\([^,]+,\s*'([^']+)'", script.string
-            ):
-                date_match = re.search(r"passDate=(\d{4}-\d{2}-\d{2})", path)
-                if date_match:
-                    date_key = date_match.group(1)
-                    bookings.setdefault(
-                        date_key,
-                        {
-                            "url": f"https://lulebo.aptustotal.se{path}",
-                            "slot": self._slot_from_path(path),
-                        },
-                    )
+            loaded_any = True
 
-        # --- Strategy 3: "booked by me" button classes on the grid ----------
-        if cal_soup:
-            for btn in cal_soup.find_all(
-                "button", class_=re.compile(r"[Mm]y|[Bb]ooked[Bb]y[Mm]e|ownBook")
-            ):
-                onclick = btn.get("onclick", "")
-                date_match = re.search(r"passDate=(\d{4}-\d{2}-\d{2})", onclick)
-                path_match = re.search(r"'(/CustomerBooking[^']+)'", onclick)
-                if date_match and path_match:
-                    date_key = date_match.group(1)
-                    bookings.setdefault(
-                        date_key,
-                        {
-                            "url": f"https://lulebo.aptustotal.se{path_match.group(1)}",
-                            "slot": self._slot_from_path(path_match.group(1)),
-                        },
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for btn in soup.find_all("button", class_="unbookButton"):
+                booking_id = btn.get("id")
+                aria_label = btn.get("aria-label", "")
+                match = self._AVBOKA_LABEL_RE.search(aria_label)
+                if not booking_id or not match:
+                    _LOGGER.debug(
+                        "Lulebo API: unbookButton found but could not parse it "
+                        "(id=%s, aria-label=%r)",
+                        booking_id,
+                        aria_label,
                     )
+                    continue
+
+                date_key, start_time = match.group(1), match.group(2)
+                bookings.setdefault(
+                    date_key,
+                    {
+                        "url": f"{self.base_url}/CustomerBooking/Unbook/{booking_id}",
+                        "slot": self._slot_from_start_time(start_time),
+                    },
+                )
 
         if not loaded_any:
             _LOGGER.warning("Lulebo API: could not load any bookings page")
@@ -316,10 +297,18 @@ class LuleboLaundryAPI:
         return bookings
 
     @staticmethod
-    def _slot_from_path(path: str):
-        """Extract the passNo from an unbook URL/path, if present."""
-        m = re.search(r"passNo=(\d+)", path or "")
-        return m.group(1) if m else None
+    def _slot_from_start_time(start_time: str):
+        """Map a 'HH:MM' start time back to our slot number (0-3), if it matches."""
+        try:
+            hour, minute = start_time.split(":")
+            normalized = f"{int(hour):02d}:{minute}"
+        except (ValueError, AttributeError):
+            normalized = start_time
+
+        for slot, (start, _end) in SLOT_TIMES.items():
+            if start == normalized:
+                return slot
+        return None
 
     # ------------------------------------------------------------------ #
     # Booking / cancelling
