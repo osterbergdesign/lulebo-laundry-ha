@@ -1,1 +1,0 @@
-DOMAIN = "lulebo_laundry"
