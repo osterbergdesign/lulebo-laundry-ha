@@ -5,9 +5,34 @@ A homassistant integration making it possible to book, cancel and check laundry 
 En custom integration för att övervaka, boka och avboka tvättpass hos Lulebo (Aptus) direkt i Home Assistant. 
 
 ## Funktioner
-* 🟢 Se lediga tvättider för veckan.
-* 📅 Boka och avboka pass via skript.
+* 🗓️ **Eget bokningskort** – veckan som ett rutnät (som på Lulebos sida), en dag i taget på mobilen. Boka och avboka med ett tryck.
+* 🟢 Se lediga tvättider för den här och nästa vecka.
+* 📅 Boka och avboka pass via tjänster/skript (`lulebo_laundry.book`, `lulebo_laundry.cancel`, `lulebo_laundry.refresh`).
+* 🗓️ Dina bokningar som kalenderhändelser.
 * ✅ Fullt integrerad med Home Assistants inbyggda "Att göra"-lista (Todo) för att visa aktiva bokningar.
+
+## Bokningskortet
+Kortet följer med integrationen och laddas automatiskt – du behöver inte lägga till någon resurs. Lägg till det på valfri instrumentpanel:
+
+```yaml
+type: custom:lulebo-laundry-card
+# valfritt:
+# entity: sensor.lulebo_laundry_availability
+# title: Tvättstuga
+# narrow_width: 560   # smalare än så visas en dag i taget
+```
+
+* **Brett kort:** hela veckan som ett rutnät med de fyra passen. Pilarna byter mellan den här och nästa vecka.
+* **Smalt kort (mobil):** en dag i taget med dagen överst och pilar för att byta dag.
+* Tryck på en ledig tid för att boka, eller på din egen tid för att avboka. Kortet frågar alltid först.
+* Visar din nästa bokade tid överst. Texterna är på svenska eller engelska beroende på ditt språk i Home Assistant.
+* Färgerna kan ändras med CSS-variabler (t.ex. via card-mod): `--lulebo-card-background`, `--lulebo-tile-background`, `--lulebo-accent-color`, `--lulebo-text-color`, `--lulebo-muted-color`, `--lulebo-font`.
+
+### Nytt i sensorn (1.2.0)
+* `my_bookings` – dina bokningar som `{datum: pass}` (pass `"0"`–`"3"`).
+* `days` – de 14 dagarna som bokningskalendern visar (måndag den här veckan till söndag nästa vecka).
+* `slot_times` – passens start- och sluttider.
+* `book` och `cancel` ger nu ett fel om det inte gick, och uppdaterar sensorn och kalendern direkt efteråt.
 
 ## Installation via HACS (Rekommenderas)
 1. Öppna HACS i Home Assistant.

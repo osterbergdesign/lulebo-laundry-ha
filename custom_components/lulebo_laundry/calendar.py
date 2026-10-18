@@ -20,7 +20,9 @@ SCAN_INTERVAL = timedelta(hours=1)
 
 async def async_setup_entry(hass, entry, async_add_entities):
     api = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([LuleboCalendar(api, entry)], True)
+    calendar = LuleboCalendar(api, entry)
+    hass.data[DOMAIN].setdefault(f"{entry.entry_id}_entities", []).append(calendar)
+    async_add_entities([calendar], True)
 
 
 class LuleboCalendar(CalendarEntity):

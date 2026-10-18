@@ -4,9 +4,18 @@
   "config_flow": true,
   "documentation": "https://github.com/osterbergdesign/lulebo-laundry-ha",
   "issue_tracker": "https://github.com/osterbergdesign/lulebo-laundry-ha/issues",
-  "dependencies": ["todo"],
-  "codeowners": ["@osterbergdesign"],
-  "requirements": ["beautifulsoup4>=4.11.1", "requests>=2.28.1"],
+  "dependencies": [
+    "frontend",
+    "http",
+    "todo"
+  ],
+  "codeowners": [
+    "@osterbergdesign"
+  ],
+  "requirements": [
+    "beautifulsoup4>=4.11.1",
+    "requests>=2.28.1"
+  ],
   "iot_class": "cloud_polling",
-  "version": "1.1.9"
+  "version": "1.2.0"
 }
