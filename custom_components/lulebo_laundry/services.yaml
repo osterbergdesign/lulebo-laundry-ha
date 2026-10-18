@@ -1,24 +1,43 @@
 book:
   name: "Boka Tvättid"
-  description: "Bokar ett tvättpass hos Lulebo."
+  description: "Bokar ett tvättpass hos Lulebo. Ger ett fel om tiden inte gick att boka."
   fields:
     date:
       name: "Datum"
       description: "Datum för bokning (Format: YYYY-MM-DD)"
       required: true
       example: "2026-06-15"
+      selector:
+        text:
     slot:
-      name: "Passnummer"
-      description: "Vilket pass som ska bokas (0, 1, 2 eller 3)"
+      name: "Pass"
+      description: "Vilket pass som ska bokas"
       required: true
       example: "1"
+      selector:
+        select:
+          options:
+            - label: "07:00 - 10:30"
+              value: "0"
+            - label: "10:30 - 14:00"
+              value: "1"
+            - label: "14:00 - 17:30"
+              value: "2"
+            - label: "17:30 - 21:00"
+              value: "3"
 
 cancel:
   name: "Avboka Tvättid"
-  description: "Avbokar ett befintligt tvättpass."
+  description: "Avbokar ett befintligt tvättpass. Ger ett fel om det inte gick."
   fields:
     date:
       name: "Datum"
       description: "Datum att avboka (Format: YYYY-MM-DD)"
       required: true
       example: "2026-06-15"
+      selector:
+        text:
+
+refresh:
+  name: "Uppdatera"
+  description: "Hämtar lediga tider och dina bokningar från Lulebo direkt."

@@ -1,5 +1,9 @@
 DOMAIN = "lulebo_laundry"
 
+# The booking card (www/lulebo-laundry-card.js) is served from here and added to every dashboard.
+STATIC_URL = "/lulebo_laundry"
+CARD_URL = f"{STATIC_URL}/lulebo-laundry-card.js"
+
 # Network
 REQUEST_TIMEOUT = 30  # seconds, applied to every HTTP request
 
